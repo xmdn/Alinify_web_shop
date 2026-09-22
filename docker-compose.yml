@@ -1,0 +1,105 @@
+name: upscale-wp-test
+
+# Local WordPress + WooCommerce store used to test the UpScale import pipeline.
+# Companion to D:/UpScale-Back-master. See README.md for the runbook.
+#
+#   wp         WordPress 6 (http://localhost:8080)
+#   wpdb       MySQL 8 (host port 3308, does not clash with UpScale's 3307)
+#   cli        WP-CLI container (kept alive; driven by scripts/setup.*)
+#   ups-mock   Minimal stand-in for the external "UPS" category API (:9000)
+
+services:
+  wp:
+    # WooCommerce now requires WordPress 7.0+, so this must be 7.x.
+    image: wordpress:7.1
+    container_name: upscale_wp
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: wpdb
+      WORDPRESS_DB_USER: wpuser
+      WORDPRESS_DB_PASSWORD: WpTest__23
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: "1"
+    volumes:
+      - wp_data:/var/www/html
+    depends_on:
+      wpdb:
+        condition: service_healthy
+    networks:
+      - upscale_test
+
+  wpdb:
+    # mysql:8.4 is used when it is already present locally; any 8.x works with
+    # the official WordPress image. Switch to mysql:8.0 if you prefer.
+    image: mysql:8.4
+    container_name: upscale_wp_db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wpuser
+      MYSQL_PASSWORD: WpTest__23
+      MYSQL_ROOT_PASSWORD: WpTestRoot__23
+    ports:
+      - "3308:3306"
+    volumes:
+      - wp_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pWpTestRoot__23"]
+      interval: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - upscale_test
+
+  cli:
+    image: wordpress:cli
+    container_name: upscale_wp_cli
+    restart: unless-stopped
+    # Kept idle so `docker compose exec cli wp ...` can drive the setup.
+    entrypoint: ["tail", "-f", "/dev/null"]
+    user: "33:33"
+    environment:
+      WORDPRESS_DB_HOST: wpdb
+      WORDPRESS_DB_USER: wpuser
+      WORDPRESS_DB_PASSWORD: WpTest__23
+      WORDPRESS_DB_NAME: wordpress
+      HOME: /tmp
+    volumes:
+      - wp_data:/var/www/html
+      # Project root, so scripts/setup-site.php can write config/mapping.json
+      # and mock-ups/categories.json with the store's real ids.
+      - ./:/work
+    depends_on:
+      wp:
+        condition: service_started
+      wpdb:
+        condition: service_healthy
+    networks:
+      - upscale_test
+
+  ups-mock:
+    build: ./mock-ups
+    container_name: upscale_ups_mock
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      UPS_MOCK_KEY: mock-ups-key
+      UPS_MOCK_CATEGORIES: /app/categories.json
+    volumes:
+      # Host-editable: scripts/setup.* rewrite this file with the store's real
+      # category ids. The mock re-reads it on every request.
+      - ./mock-ups/categories.json:/app/categories.json:ro
+    networks:
+      - upscale_test
+
+volumes:
+  wp_data: {}
+  wp_db: {}
+
+networks:
+  upscale_test:
+    name: upscale_test_network
+    driver: bridge

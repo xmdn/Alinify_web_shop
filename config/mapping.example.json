@@ -1,0 +1,16 @@
+{
+  "actual_attributes": [
+    { "id": 562, "name": "Производители" },
+    { "id": 563, "name": "Бренд" },
+    { "id": 567, "name": "mpn" },
+    { "id": 664, "name": "gcategory" }
+  ],
+  "spec_example": [
+    { "id": 563, "name": "Бренд", "position": 0, "visible": true, "variation": false, "options": ["TestBrand"] },
+    { "id": 664, "name": "gcategory", "position": 1, "visible": false, "variation": false, "options": ["4508"] }
+  ],
+  "gcategories_json": {
+    "test-category": { "category_id": 15, "g_category": 4508 }
+  }
+}
+
