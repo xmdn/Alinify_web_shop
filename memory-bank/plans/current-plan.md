@@ -1,87 +1,88 @@
-# Plan — Documentation + memory bank, then run the store on Windows
+# Plan — Real product photographs and a storefront that looks finished
 
 > Active plan. Update it as scope changes. Do not mark anything done until the
 > implementation and validation actually finished.
 
 ## Status
 
-Phase 1 (documentation + memory bank) is **complete** in this session.
-Phase 2 (run and validate the store on Windows) is **ready to execute by the
-user**, not started here.
+**Implemented and verified (2026-09-22).** The store now shows real photographs of
+real products, its own logo and hero banner, Ukrainian chrome and a published
+attribution page. `scripts/setup.ps1` runs the whole chain end to end and
+`scripts/verify.py` reports *All checks passed*.
 
 ## Goal
 
-Give `D:/UpScale-WP-Test` the same durable shared-context contract the backend has
-(root agent instructions, `.clinerules/`, `memory-bank/`), and unblock the Windows
-setup so the pipeline can be exercised against the store.
+Close the gap the user saw between `http://localhost:8080` and the reference
+storefront: no logo, no banner, category tiles without images, and — the main
+complaint — **no real product photographs**, so the store looked empty next to
+`https://beauty-mafia.com.ua/`.
 
-## Phase 1 — documentation + memory bank (DONE)
+## Scope decision
 
-Deliverables:
+The reference shop's own photographs, banners and brand logos are its property and
+are **not** copied (this continues the earlier decision **T8**). The user chose the
+alternative: photographs of **real products** from **Wikimedia Commons** under
+CC0 / public domain / CC BY / CC BY-SA, with attribution published on the store.
+Recorded as **T12**; the language/navigation polish is **T13**.
 
-- `AGENTS.md`, `CLAUDE.md`
-- `.clinerules/memory.md`, `.clinerules/workflow.md`
-- `memory-bank/`: `README.md`, `projectBrief.md`, `architecture.md`,
-  `decisions.md` (T1–T7), `activeContext.md`, `progress.md`, `strategy.md`,
-  `plans/current-plan.md`, `plans/archive/.gitkeep`
+## What was built
 
-Acceptance criteria:
+| Piece | File(s) |
+| --- | --- |
+| Photo acquisition + licence record | `scripts/fetch_product_photos.py` → `data/photo-sources.json`, `data/photo-map.json`, `assets/product-photos/`, `assets/hero/` |
+| Shared demo helpers | `scripts/inc/demo-data.php` (labels, category → keyword) |
+| Photo import + product/category images + attribution page | `scripts/seed-photos.php` |
+| Names that match the photo, Ukrainian pages, handheld menu | `scripts/seed-catalog.php` |
+| Logo, hero, image tiles, footer link, Ukrainian fallback | `theme/upscale-storefront/` (`assets/logo.svg`, `header.php`, `front-page.php`, `footer.php`, `functions.php`, `inc/layout.php`, `style.css`) |
+| Wiring | `scripts/setup.ps1` (`-PhotosPath`, `-SkipPhotos`) |
 
-- Every file's content is traceable to the repository (or the backend's canonical
-  docs for the coupling), not to a guess.
-- No script, `docker-compose.yml`, or generated config is changed by this phase.
-- The load-bearing constraints (test-store-only, `push` needs `-Push`, no bypassing
-  Claid/empty metadata, `down -v` is destructive) appear in `AGENTS.md`.
+## Acceptance criteria and how they were checked
 
-Verification: source inspection across `docker-compose.yml`, `scripts/`,
-`mock-ups/`, `config/`, and the backend's `memory-bank/` + `docs/`. No runtime
-check was performed (documentation-only change).
+- 36/36 product-type keywords have photographs (86 files); `data/photo-sources.json`
+  records author, licence, licence URL and Commons file page for each.
+- Every demo product: 304/304 have a featured image; product names follow the photo
+  subject (spot-checked: "Мийка парикмахерська BarberCraft M-870" + 3 gallery images).
+- Every category: 174/174 resolve to a photo; the homepage shows 8 tiles each with a
+  photo.
+- Attribution page "Джерела зображень": 88 rows, 87 Commons links, linked from the
+  footer.
+- Chrome is Ukrainian ("Додати в кошик"), 0 "Add to cart" strings left; page titles
+  renamed; 0 stray page-menu items.
+- `python scripts/verify.py` → *All checks passed*; `php -l` clean; no PHP notices.
+- `scripts/setup.ps1` end to end on the existing store: idempotent (0 duplicate
+  products/pages/reviews/media), photo pass reused 86 attachments.
 
-## Phase 2 — run and validate the store on Windows (READY, user-run)
+## Constraints honoured
 
-Steps (Windows host):
+- No third-party catalogue content: photos are Commons files with recorded licences;
+  the reference shop's images, banners and brand are untouched.
+- No `docker compose down -v`, no production keys, nothing changed in
+  `../UpScale-Back-master` (read-only for the `g_category` snapshot).
+- `push` was never run.
 
-1. `docker compose up -d --build`
-   (already done once by the user; all four containers came up.)
-2. `powershell -ExecutionPolicy Bypass -File scripts/setup.ps1`
-   — **the Windows path**; do not use `bash scripts/setup.sh` (CRLF, POSIX) or
-   `bash scripts/setup.ps1` (wrong interpreter). See T7.
-3. Paste the printed `.env` block into `../UpScale-Back-master/.env`
-   (`WC_API_URL`, `WC_API_KEY`, `WC_API_SECRET`, `UPS_API_URL`, `UPS_API_KEY`,
-   `UPSCALE_MAPPING_FILE`).
-4. `python scripts/verify.py --url http://localhost:8080 --key <ck> --secret <cs>`
-   — expect all checks OK (REST via OAuth1, the four attributes, categories,
-   create draft, delete).
-5. `powershell -ExecutionPolicy Bypass -File scripts/smoke.ps1 -Api http://localhost:8000 -Url <competitor URL> -Images <url>`
-   — needs a real `GPT_API_KEY` and a Claid token with credits. Add `-Push` only
-   with explicit authorization.
+## Addendum (2026-09-22) — the test runbook
 
-Acceptance criteria:
+`docs/TESTING.md` was added and linked from `README.md`: the end-to-end runbook for
+running the UpScale product against this store (credentials → backend `.env` →
+smoke test → bulk CSV → checklist → pitfalls → safety rules).
 
-- `setup.ps1` runs end to end and writes `config/mapping.json` +
-  `mock-ups/categories.json` with the store's real ids.
-- `verify.py` reports "All checks passed."
-- The backend resolves `PromptData` against this store's ids when
-  `UPSCALE_MAPPING_FILE` is set.
+It was written from the current files and the backend's own docs/code — the two
+silent failure modes (backend-in-Docker networking, and `UPSCALE_MAPPING_FILE` not
+being readable inside the backend container) were confirmed in
+`infrastructure/api_clients/gpt_data.py` (`apply_store_mapping_override()` →
+`os.path.isfile()`) and the backend's `docker-compose.yml` (no host mounts).
 
-Risks / notes:
+The first live run of the pipeline is the operator's step: **no stage, and in
+particular no `push`/`push_all`, was executed here**, and Claid credits remain a
+prerequisite for `process`.
 
-- Docker's expected non-zero probe exits are handled (`$ErrorActionPreference =
-  "Continue"`); do not flip it to `"Stop"`.
-- `process` fails without Claid credits — that is a blocker, not a bug (backend D3).
-- Never `docker compose down -v` unless the intent is to delete the store.
+## Remaining / known gaps
 
-## Phase 3 — optional follow-ups (PROPOSED, needs the user to choose)
-
-1. Convert `scripts/setup.sh` to LF line endings (or document the split further) so
-   the Windows trap disappears.
-2. Add an explicit "Windows quick start" callout to `README.md` (currently accurate
-   but easy to miss — the user hit exactly this).
-3. Script a single setup → verify → smoke entrypoint for regression runs.
-4. Decide the long-term id strategy with the backend (live fetch vs the override).
-
-## Constraints and dependencies
-
-- Preserve T1–T7 and the backend's D1, D2, D3, D19, D20.
-- Any change touching publication needs explicit user authorization.
-- No git repository → back up before destructive changes.
+1. **`scripts/setup.sh` still lags** `setup.ps1` (catalog, theme, photo and seed
+   steps). Windows is the validated path (T7); POSIX parity is open work.
+2. A photo shows the *type* of product, not the exact model in the card, and is
+   reused across neighbouring cards — acceptable for a demo, would need a licensed
+   per-product source to improve.
+3. The attribution page is required while the CC BY / CC BY-SA photos are used.
+4. Optional polish: brand logos for the strip (deliberately text-only), several
+   distinct shots per type, a blog/FAQ block.

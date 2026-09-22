@@ -27,8 +27,9 @@ the index.
 
 ## Synchronization model
 
-This directory is **not a git repository**. There is no `push`/`pull` handoff and
-no revert safety net, so:
+This directory lives inside the project's git repository (`main`, one commit at the
+time of writing, remote `origin`), but agent handoff does **not** rely on git:
+there is no `push`/`pull` handoff and no revert safety net for uncommitted work, so:
 
 ```text
 Agent A -> memory-bank -> shared filesystem -> Agent B

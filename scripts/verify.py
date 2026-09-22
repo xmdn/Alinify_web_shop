@@ -30,6 +30,18 @@ import uuid
 _enc = lambda s: urllib.parse.quote(str(s), safe="~")
 
 
+def _force_utf8_stdout():
+    """Windows consoles default to cp1252 and cannot print Cyrillic attribute
+    names ('Бренд', 'Производители'), which this script prints as detail."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                pass
+
+
 def request(base_url, key, secret, method, path, query=None, body=None):
     url = base_url.rstrip("/") + path
     params = {
@@ -73,6 +85,7 @@ def request(base_url, key, secret, method, path, query=None, body=None):
 
 
 def main():
+    _force_utf8_stdout()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--url", default="http://localhost:8080")
     ap.add_argument("--key", required=True)

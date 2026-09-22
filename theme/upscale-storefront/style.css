@@ -1,0 +1,648 @@
+/*
+Theme Name: UpScale Test Storefront
+Theme URI: http://localhost:8080
+Description: Child theme of Storefront for the UpScale WordPress/WooCommerce test store. It mirrors the *structure* of a professional beauty/barber supply storefront (utility top bar, navigation with category dropdowns, hero banner, category tiles, product grids, brand strip, trust blocks, testimonials, four-column footer) using this project's own colours, demo copy and placeholder artwork. Nothing here is copied from another site.
+Author: UpScale test store
+Template: storefront
+Version: 1.0.0
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: upscale-storefront
+*/
+
+:root {
+	--ups-ink: #16181d;
+	--ups-ink-soft: #3a3f4a;
+	--ups-bar: #101216;
+	--ups-accent: #c8102e;
+	--ups-accent-dark: #a20d25;
+	--ups-line: #e3e5ea;
+	--ups-surface: #ffffff;
+	--ups-canvas: #f4f5f7;
+	--ups-muted: #6b7280;
+	--ups-radius: 10px;
+	--ups-shadow: 0 2px 10px rgba(16, 18, 22, 0.08);
+}
+
+body {
+	background: var(--ups-canvas);
+	color: var(--ups-ink);
+	font-size: 15px;
+}
+
+a {
+	color: var(--ups-ink);
+}
+
+a:hover {
+	color: var(--ups-accent);
+}
+
+.ups-wrap {
+	max-width: 1280px;
+	margin: 0 auto;
+	padding: 0 20px;
+}
+
+/* The reference layout is wider than Storefront's default content column. */
+#content.site-content > .col-full {
+	max-width: 1280px;
+}
+
+/* Demo banner ------------------------------------------------------------ */
+
+.ups-demo-note {
+	background: repeating-linear-gradient(45deg, #fff8e1, #fff8e1 12px, #fdf2d0 12px, #fdf2d0 24px);
+	color: #6b5700;
+	font-size: 12px;
+	text-align: center;
+	padding: 6px 12px;
+	letter-spacing: 0.02em;
+}
+
+/* Utility top bar -------------------------------------------------------- */
+
+.ups-topbar {
+	background: var(--ups-bar);
+	color: #d7dae0;
+	font-size: 13px;
+}
+
+.ups-topbar .ups-wrap {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	min-height: 38px;
+}
+
+.ups-topbar a {
+	color: #d7dae0;
+	text-decoration: none;
+}
+
+.ups-topbar a:hover {
+	color: #fff;
+}
+
+.ups-topbar__left,
+.ups-topbar__right {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+
+.ups-topbar__phone {
+	font-weight: 600;
+	color: #fff;
+}
+
+.ups-topbar__tag {
+	background: var(--ups-accent);
+	color: #fff;
+	border-radius: 3px;
+	padding: 2px 8px;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+/* Header ----------------------------------------------------------------- */
+
+.site-header {
+	background: var(--ups-surface);
+	border-bottom: 1px solid var(--ups-line);
+}
+
+.site-header .col-full,
+.storefront-primary-navigation .col-full {
+	max-width: 1280px;
+}
+
+/* Logo ------------------------------------------------------------------- */
+
+.ups-logo {
+	display: inline-block;
+	line-height: 0;
+	text-decoration: none;
+}
+
+.ups-logo img {
+	height: 54px;
+	width: auto;
+	max-width: 100%;
+}
+
+.site-footer .ups-logo img {
+	height: 46px;
+	filter: brightness(0) invert(1);
+	opacity: 0.95;
+	margin-bottom: 10px;
+}
+
+.ups-header__brand {
+	display: inline-block;
+	vertical-align: middle;
+	padding: 14px 0;
+}
+
+.ups-header__tagline {
+	margin: 6px 0 0;
+	color: var(--ups-muted);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+}
+
+.ups-header__side {
+	float: right;
+	padding: 30px 0 0;
+}
+
+.site-header .site-branding {
+	padding: 18px 0;
+}
+
+.site-branding .site-title a {
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	text-transform: uppercase;
+}
+
+.site-branding .site-title a::before {
+	content: "";
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	margin-right: 8px;
+	border-radius: 2px;
+	background: var(--ups-accent);
+	vertical-align: middle;
+}
+
+.site-description {
+	color: var(--ups-muted);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.storefront-primary-navigation {
+	background: var(--ups-ink);
+}
+
+.main-navigation ul li a {
+	color: #e9eaee;
+	font-weight: 600;
+	font-size: 14px;
+}
+
+.main-navigation ul li a:hover,
+.main-navigation ul li.current-menu-item > a {
+	color: #fff;
+	background: var(--ups-accent);
+}
+
+.main-navigation ul li ul {
+	background: var(--ups-surface);
+	border-top: 3px solid var(--ups-accent);
+	box-shadow: var(--ups-shadow);
+	min-width: 260px;
+}
+
+.main-navigation ul li ul li a {
+	color: var(--ups-ink);
+	background: transparent;
+	font-weight: 500;
+}
+
+.main-navigation ul li ul li a:hover {
+	color: #fff;
+	background: var(--ups-accent);
+}
+
+.site-header-cart .cart-contents .amount {
+	font-weight: 700;
+}
+
+/* Buttons ---------------------------------------------------------------- */
+
+.button,
+button,
+input[type="submit"],
+.add_to_cart_button {
+	border-radius: var(--ups-radius);
+	background: var(--ups-accent);
+	color: #fff;
+	font-weight: 600;
+	text-transform: none;
+	padding: 10px 18px;
+	border: 0;
+}
+
+.button:hover,
+button:hover,
+input[type="submit"]:hover,
+.add_to_cart_button:hover {
+	background: var(--ups-accent-dark);
+	color: #fff;
+}
+
+.button.alt,
+.single_add_to_cart_button {
+	background: var(--ups-ink);
+}
+
+.button.alt:hover,
+.single_add_to_cart_button:hover {
+	background: var(--ups-accent);
+}
+
+/* Homepage sections ------------------------------------------------------ */
+
+.ups-section {
+	padding: 38px 0;
+}
+
+.ups-section__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 20px;
+}
+
+.ups-section__title {
+	font-size: 24px;
+	font-weight: 800;
+	margin: 0;
+	letter-spacing: -0.01em;
+}
+
+.ups-section__link {
+	font-size: 13px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--ups-accent);
+	text-decoration: none;
+}
+
+.ups-hero {
+	background-color: #16181d;
+	background-image:
+		linear-gradient(100deg, rgba(13, 15, 19, 0.93) 0%, rgba(18, 20, 26, 0.8) 45%, rgba(58, 26, 32, 0.72) 100%),
+		var(--ups-hero-image, none);
+	background-size: cover;
+	background-position: center;
+	color: #fff;
+	padding: 64px 0;
+}
+
+.ups-hero__grid {
+	display: grid;
+	grid-template-columns: 1.6fr 1fr;
+	gap: 24px;
+	align-items: stretch;
+}
+
+.ups-hero__eyebrow {
+	display: inline-block;
+	background: rgba(255, 255, 255, 0.12);
+	border-radius: 999px;
+	padding: 5px 14px;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+	margin-bottom: 16px;
+}
+
+.ups-hero__title {
+	color: #fff;
+	font-size: 38px;
+	line-height: 1.15;
+	font-weight: 800;
+	margin: 0 0 14px;
+	max-width: 22ch;
+}
+
+.ups-hero__text {
+	color: #c9cdd6;
+	font-size: 16px;
+	max-width: 56ch;
+	margin-bottom: 22px;
+}
+
+.ups-hero__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
+.ups-hero__actions .button {
+	background: var(--ups-accent);
+}
+
+.ups-hero__actions .button.ups-ghost {
+	background: transparent;
+	border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.ups-promo {
+	background: var(--ups-surface);
+	border-radius: var(--ups-radius);
+	padding: 24px;
+	color: var(--ups-ink);
+	box-shadow: var(--ups-shadow);
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 10px;
+}
+
+.ups-promo__label {
+	color: var(--ups-accent);
+	font-size: 12px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.1em;
+}
+
+.ups-promo__title {
+	font-size: 20px;
+	font-weight: 800;
+	margin: 0;
+}
+
+.ups-promo__text {
+	color: var(--ups-muted);
+	margin: 0;
+}
+
+.ups-tiles {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 16px;
+}
+
+.ups-tile {
+	display: block;
+	overflow: hidden;
+	background: var(--ups-surface);
+	border: 1px solid var(--ups-line);
+	border-radius: var(--ups-radius);
+	padding: 0;
+	text-decoration: none;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ups-tile__media {
+	display: block;
+	aspect-ratio: 4 / 3;
+	overflow: hidden;
+	background: var(--ups-canvas);
+}
+
+.ups-tile__img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+	transition: transform 0.25s ease;
+}
+
+.ups-tile:hover .ups-tile__img {
+	transform: scale(1.04);
+}
+
+.ups-tile__body {
+	display: block;
+	padding: 16px 18px 18px;
+}
+
+.ups-tile:hover {
+	transform: translateY(-2px);
+	box-shadow: var(--ups-shadow);
+}
+
+.ups-tile__name {
+	font-weight: 700;
+	font-size: 15px;
+	display: block;
+	margin-bottom: 6px;
+}
+
+.ups-tile__children {
+	color: var(--ups-muted);
+	font-size: 12px;
+	line-height: 1.5;
+}
+
+.ups-tile__count {
+	color: var(--ups-accent);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+/* Trust, brands, testimonials ------------------------------------------- */
+
+.ups-trust {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 16px;
+}
+
+.ups-trust__item {
+	background: var(--ups-surface);
+	border-radius: var(--ups-radius);
+	border: 1px solid var(--ups-line);
+	padding: 20px;
+}
+
+.ups-trust__title {
+	font-weight: 700;
+	margin: 0 0 6px;
+	font-size: 15px;
+}
+
+.ups-trust__text {
+	color: var(--ups-muted);
+	margin: 0;
+	font-size: 13px;
+}
+
+.ups-brands {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.ups-brand {
+	background: var(--ups-surface);
+	border: 1px solid var(--ups-line);
+	border-radius: 999px;
+	padding: 8px 16px;
+	font-weight: 600;
+	font-size: 13px;
+	color: var(--ups-ink-soft);
+}
+
+.ups-reviews {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 16px;
+}
+
+.ups-review {
+	background: var(--ups-surface);
+	border-radius: var(--ups-radius);
+	border: 1px solid var(--ups-line);
+	padding: 20px;
+	margin: 0;
+}
+
+.ups-review__stars {
+	color: #f0a30a;
+	letter-spacing: 2px;
+	margin-bottom: 8px;
+	display: block;
+}
+
+.ups-review__text {
+	margin: 0 0 12px;
+	color: var(--ups-ink-soft);
+}
+
+.ups-review__author {
+	font-size: 13px;
+	color: var(--ups-muted);
+	margin: 0;
+}
+
+/* Product cards ---------------------------------------------------------- */
+
+ul.products li.product {
+	background: var(--ups-surface);
+	border: 1px solid var(--ups-line);
+	border-radius: var(--ups-radius);
+	padding: 14px;
+	text-align: left;
+}
+
+ul.products li.product img {
+	border-radius: 6px;
+	background: var(--ups-canvas);
+}
+
+ul.products li.product .woocommerce-loop-product__title {
+	font-size: 15px;
+	font-weight: 600;
+	min-height: 44px;
+	padding: 10px 0 4px;
+}
+
+ul.products li.product .price {
+	color: var(--ups-ink);
+	font-weight: 800;
+	font-size: 17px;
+}
+
+ul.products li.product .star-rating {
+	margin: 4px 0;
+}
+
+ul.products li.product .button {
+	width: 100%;
+	text-align: center;
+	margin-top: 8px;
+}
+
+.woocommerce-loop-product__brand {
+	display: block;
+	color: var(--ups-muted);
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+/* Footer ----------------------------------------------------------------- */
+
+.site-footer {
+	background: var(--ups-ink);
+	color: #b9bec9;
+	margin-top: 40px;
+}
+
+.site-footer a {
+	color: #d7dae0;
+}
+
+.site-footer a:hover {
+	color: #fff;
+}
+
+.site-footer .widget-title,
+.site-footer h2,
+.site-footer h3 {
+	color: #fff;
+	font-size: 15px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.site-footer .col-full {
+	max-width: 1280px;
+}
+
+.ups-footer__grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 24px;
+	padding: 32px 0;
+}
+
+.ups-footer__title {
+	color: #fff;
+	font-size: 14px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	margin: 0 0 12px;
+}
+
+.ups-footer__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	font-size: 13px;
+	line-height: 2;
+}
+
+.ups-footer__text {
+	font-size: 13px;
+	line-height: 1.7;
+	color: #9aa0ab;
+}
+
+.ups-footer__note {
+	border-top: 1px solid rgba(255, 255, 255, 0.12);
+	padding: 16px 0;
+	font-size: 12px;
+	color: #8b919d;
+}
+
+@media (max-width: 900px) {
+	.ups-hero__grid,
+	.ups-tiles,
+	.ups-trust,
+	.ups-reviews,
+	.ups-footer__grid {
+		grid-template-columns: 1fr;
+	}
+
+	.ups-hero__title {
+		font-size: 28px;
+	}
+}
+
+
+

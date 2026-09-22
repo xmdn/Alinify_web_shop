@@ -8,8 +8,14 @@
  * Does three idempotent things and prints a JSON summary on stdout:
  *   1. ensures the global attributes the pipeline expects (calls the mu-plugin's
  *      Section A directly, so it also works if `init` already ran);
- *   2. ensures one test product category;
+ *   2. ensures the product categories — normally the whole tree from
+ *      `data/catalog.json` (scripts/build_catalog.py), or the single legacy test
+ *      category when that file is absent;
  *   3. creates a WooCommerce REST key pair (read/write).
+ *
+ * It also writes the two generated artifacts:
+ *   config/mapping.json       `gcategories_json` for every category
+ *   mock-ups/categories.json  the "UPS" mock's list, with `icp` / `keywords`
  *
  * The keys are printed exactly once — WooCommerce stores the consumer key hashed
  * and never shows the secret again.
@@ -40,12 +46,101 @@ if (function_exists('wc_get_attribute_taxonomies')) {
     }
 }
 
-/* 2. Test product category ------------------------------------------------ */
-if (!term_exists($category_slug, 'product_cat')) {
-    wp_insert_term($category_name, 'product_cat', array('slug' => $category_slug));
+/* 2. Product categories ---------------------------------------------------
+ * Preferred path: `data/catalog.json` — the category tree that
+ * scripts/build_catalog.py mirrored from the reference storefront (names,
+ * slugs, hierarchy, Google category) with this project's own keywords/icp.
+ * Entries are created parent-first so WooCommerce gets the same hierarchy.
+ * Without that file the original single test category is created, which keeps
+ * the script backwards compatible. */
+
+$catalog_file    = getenv('UPSCALE_CATALOG_FILE') ?: '';
+$catalog_entries = array();
+
+if ($catalog_file && is_readable($catalog_file)) {
+    $decoded = json_decode(file_get_contents($catalog_file), true);
+    if (isset($decoded['categories']) && is_array($decoded['categories'])) {
+        $catalog_entries = $decoded['categories'];
+    }
 }
-$term        = get_term_by('slug', $category_slug, 'product_cat');
-$category_id = $term && !is_wp_error($term) ? (int) $term->term_id : 0;
+
+$category_map    = array(); // slug => term_id
+$mock_categories = array(); // the UPS mock payload
+$gcategories     = array(); // config/mapping.json → gcategories_json
+
+foreach ($catalog_entries as $entry) {
+    $slug = isset($entry['slug']) ? (string) $entry['slug'] : '';
+    if ('' === $slug) {
+        continue;
+    }
+
+    $parent_id = 0;
+    if (!empty($entry['parent_slug']) && isset($category_map[$entry['parent_slug']])) {
+        $parent_id = (int) $category_map[$entry['parent_slug']];
+    }
+
+    $existing = get_term_by('slug', $slug, 'product_cat');
+    if ($existing && !is_wp_error($existing)) {
+        $term_id = (int) $existing->term_id;
+        if ($parent_id && (int) $existing->parent !== $parent_id) {
+            wp_update_term($term_id, 'product_cat', array('parent' => $parent_id));
+        }
+    } else {
+        $inserted = wp_insert_term(
+            (string) $entry['name'],
+            'product_cat',
+            array('slug' => $slug, 'parent' => $parent_id)
+        );
+        $term_id = is_wp_error($inserted) ? 0 : (int) $inserted['term_id'];
+    }
+
+    if (!$term_id) {
+        continue;
+    }
+
+    $category_map[$slug] = $term_id;
+
+    // The mock must expose `icp` and `keywords`: `process` refuses to run
+    // without them (backend D2/D3), so every category carries its own.
+    $mock_categories[] = array(
+        'id'       => $term_id,
+        'name'     => (string) $entry['name'],
+        'slug'     => $slug,
+        'keywords' => (string) $entry['keywords'],
+        'icp'      => (string) $entry['icp'],
+    );
+
+    $gcategories[$slug] = array(
+        'category_id' => $term_id,
+        'g_category'  => (int) $entry['g_category'],
+    );
+}
+
+if (!$mock_categories) {
+    /* Legacy fallback: one test category, as before data/catalog.json existed. */
+    if (!term_exists($category_slug, 'product_cat')) {
+        wp_insert_term($category_name, 'product_cat', array('slug' => $category_slug));
+    }
+    $term        = get_term_by('slug', $category_slug, 'product_cat');
+    $category_id = $term && !is_wp_error($term) ? (int) $term->term_id : 0;
+
+    $mock_categories[] = array(
+        'id'       => $category_id,
+        'name'     => $category_name,
+        'slug'     => $category_slug,
+        'keywords' => 'тест, товар, купити, ціна, доставка, гарантія',
+        'icp'      => 'Власник WooCommerce-магазину, який шукає товар із доставкою та гарантією і порівнює пропозиції конкурентів.',
+    );
+    $gcategories[$category_slug] = array(
+        'category_id' => $category_id,
+        'g_category'  => (int) (getenv('UPSCALE_GOOGLE_CATEGORY') ?: '4508'),
+    );
+} else {
+    $first               = $mock_categories[0];
+    $category_id         = (int) $first['id'];
+    $category_name       = (string) $first['name'];
+    $category_slug       = (string) $first['slug'];
+}
 
 /* 3. WooCommerce REST key pair (mirrors WC_API_Keys::create_keys) ----------
  * WooCommerce stores the consumer key hashed (wc_api_hash) and the consumer
@@ -129,22 +224,7 @@ $mapping = array(
         $attributes
     ),
     'spec_example'     => $spec,
-    'gcategories_json' => array(
-        $category_slug => array(
-            'category_id' => $category_id,
-            'g_category'  => (int) $google_category,
-        ),
-    ),
-);
-
-$mock_categories = array(
-    array(
-        'id'       => $category_id,
-        'name'     => $category_name,
-        'slug'     => $category_slug,
-        'keywords' => 'тест, товар, купити, ціна, доставка, гарантія',
-        'icp'      => 'Власник WooCommerce-магазину, який шукає товар із доставкою та гарантією і порівнює пропозиції конкурентів.',
-    ),
+    'gcategories_json' => $gcategories,
 );
 
 $written = array('mapping' => false, 'categories' => false);
@@ -191,6 +271,8 @@ echo wp_json_encode(
             'name' => $category_name,
             'slug' => $category_slug,
         ),
+        'category_count'  => count($mock_categories),
+        'catalog_file'    => $catalog_file,
         'rest'            => array(
             'consumer_key'    => $consumer_key,
             'consumer_secret' => $consumer_secret,

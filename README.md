@@ -5,6 +5,11 @@ A local, disposable WooCommerce store used to test the UpScale import pipeline
 modifies the backend, and the backend never writes to this store unless you run
 the `push` stage yourself.
 
+> **Testing the UpScale product?** [`docs/TESTING.md`](docs/TESTING.md) is the
+> end-to-end runbook: credentials, the backend `.env`, the Docker
+> networking / `UPSCALE_MAPPING_FILE` caveats, the one-product smoke test, and the
+> bulk CSV workflow (`upload` → `collect_all` → `process_all` → `generate_all`).
+
 ## Why a dedicated store
 
 UpScale pushes products through the standard WooCommerce REST API (`wc/v3`).
@@ -17,8 +22,8 @@ can be read once and pinned into the backend.
 
 | Service | Image | Host port | Role |
 | --- | --- | --- | --- |
-| `wp` | `wordpress:6` | **8080** | The store itself |
-| `wpdb` | `mysql:8.0` | **3308** | WordPress database (does not clash with UpScale's 3307) |
+| `wp` | `wordpress:7.1` | **8080** | The store itself (the child theme `upscale-storefront` is activated by the setup) |
+| `wpdb` | `mysql:8.4` | **3308** | WordPress database (does not clash with UpScale's 3307) |
 | `cli` | `wordpress:cli` | — | WP-CLI, kept idle so `docker compose exec` can drive the setup |
 | `ups-mock` | built from `./mock-ups` | **9000** | Stand-in for the external "UPS" category API |
 
@@ -34,6 +39,9 @@ can be read once and pinned into the backend.
 ## Quick start
 
 ```powershell
+# optional: mirror the reference store's category tree + build the source list
+python scripts/build_catalog.py
+
 docker compose up -d --build
 powershell -ExecutionPolicy Bypass -File scripts/setup.ps1
 ```
@@ -41,6 +49,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup.ps1
 Linux/macOS:
 
 ```bash
+python scripts/build_catalog.py
 docker compose up -d --build
 bash scripts/setup.sh
 ```
@@ -59,6 +68,44 @@ The script finishes by printing an `.env` block. Paste it into
    WooCommerce REST key pair with **read/write** scope.
 6. Rewrites `mock-ups/categories.json` and `config/mapping.json` with the **real**
    ids so the backend, the mock API and the store all agree.
+
+## The storefront and its demo catalogue
+
+`http://localhost:8080` is not an empty shell. The setup mirrors the *structure* of
+a professional beauty/barber supply storefront so the pipeline can be exercised
+against a catalogue that looks real:
+
+| Piece | What it is |
+| --- | --- |
+| Theme | `theme/upscale-storefront` — a child theme of the free **Storefront** theme: our own SVG logo, utility top bar, dark navigation with category dropdowns, hero banner with a real photograph, category tiles with photos, product grid, brand strip, trust blocks, testimonials, four-column footer |
+| Photographs | 86 real product photos of real products (clippers, dryers, chairs, lamps …) downloaded from **Wikimedia Commons** with their licence recorded; the hero banner is one of them |
+| Attribution | the "Джерела зображень" page lists every file with its author, licence and Commons link (required by CC BY / CC BY-SA) |
+| Categories | the tree from `data/catalog.json` (174 categories by default), created parent-first, each with its own `icp` / `keywords` |
+| Products | 304 demo products named after the object in their photo (`Мийка парикмахерська BarberCraft M-870`), deterministic demo prices, featured image + gallery |
+| Navigation | the "Головне меню" WP menu, built from the top-level branches of the tree, assigned to both `primary` and `handheld` |
+| Pages | Про нас, Оплата і доставка, Повернення і обмін, Контакти, Джерела зображень — demo copy |
+| Language | Ukrainian (`WPLANG=uk`, core + WooCommerce language packs), with a gettext fallback in the theme for the English locale |
+
+What it deliberately does **not** do: copy another site's product names,
+descriptions, photographs, banners or brand. The photographs are Wikimedia
+Commons files under CC0 / public domain / CC BY / CC BY-SA — never images lifted
+from the reference shop. `data/source-products.csv` holds the public **URLs** of
+the reference store's product pages — that list is the input the analyzer consumes
+via `POST /new_products/upload` (`url` + whitespace-separated image URLs), so the
+pipeline has thousands of real targets without anything being copied.
+
+```powershell
+# regenerate the mirrored tree, the source list and the photographs
+python scripts/build_catalog.py
+python scripts/fetch_product_photos.py
+
+# seed without touching the theme, or skip the demo catalogue entirely
+powershell -ExecutionPolicy Bypass -File scripts/setup.ps1 -SkipStorefront
+powershell -ExecutionPolicy Bypass -File scripts/setup.ps1 -SkipCatalog -SkipPhotos
+```
+
+`scripts/seed-catalog.php` and `scripts/seed-photos.php` are idempotent: re-running
+them neither duplicates products, pages, reviews, menu items nor media items.
 
 ## The id problem this store exposes (and how it is bridged)
 
@@ -124,7 +171,7 @@ Global attributes readable                     OK 1=Бренд, 4=gcategory, 2=�
   attribute present: Производители             OK
   attribute present: mpn                       OK
   attribute present: gcategory                 OK
-Categories readable                            OK 16=Test Category, 15=Uncategorized
+Categories readable                            OK <id>=<category>, … (one entry per product_cat)
 Write scope (create draft)                     OK HTTP 201 id=10
 Delete the test draft                          OK HTTP 200
 ```
@@ -190,6 +237,13 @@ What a correct run looks like:
 | Attributes appear as custom, not global | `config/mapping.json` is stale or `UPSCALE_MAPPING_FILE` is not set/loaded. Re-run the setup script. |
 | `gcategory` is empty in the generated product | The product's category id is missing from `gcategories_json`, or the UPS mock returns a different id. Both come from `config/mapping.json` / `mock-ups/categories.json`. |
 | `process` stops with a Claid error | The Claid account has no credits. Report it; do not bypass image processing (D3). |
+| The shop is empty / only "Test Category" exists | `data/catalog.json` was missing when `setup.ps1` ran, so it fell back to the legacy single category. Run `python scripts/build_catalog.py`, then re-run `scripts/setup.ps1`. |
+| Products have no images | The placeholder import failed. Delete the `upscale_placeholder_ids` option and re-run `scripts/setup.ps1`. |
+| Products still show the abstract placeholder tiles | The Wikimedia photo record is missing. Run `python scripts/fetch_product_photos.py`, then re-run `scripts/setup.ps1` (or `-SkipStorefront`) to import and attach them. |
+| A category shows a placeholder instead of a photo | That product type has no Commons photo (check `data/photo-sources.json`); add a search phrase to `KEYWORDS` in `fetch_product_photos.py` and re-run it with `--only <keyword>`. |
+| The attribution page is empty | `scripts/seed-photos.php` did not run (or found no photos). It writes "Джерела зображень"; CC BY / CC BY-SA files must keep it. |
+| The theme looks like a plain blog | The `upscale-storefront` child theme was not activated (or `theme/upscale-storefront` was missing). Check `wp theme list` and re-run the setup without `-SkipStorefront`. |
+| A leftover "Test Category" is visible | Created by a run that predates `data/catalog.json`; nothing references it. Delete it under **Products → Categories** if it bothers you. |
 | `update_category` seems to do nothing | Known defect: the backend posts no body (`docs/known-issues.md` #4). Not a store problem. |
 | WP-CLI cannot write files | The `cli` container runs as uid 33. If a file is root-owned: `docker compose exec -u root cli chown -R www-data:www-data /var/www/html`. |
 
@@ -212,13 +266,28 @@ UpScale-WP-Test/
 │   ├── main.py
 │   ├── requirements.txt
 │   ├── Dockerfile
-│   └── categories.json    # rewritten by scripts/setup.*
+│   └── categories.json    # generated: rewritten by scripts/setup.*
 ├── scripts/
+│   ├── build_catalog.py   # host: mirrors the reference category tree → data/
+│   ├── fetch_product_photos.py # host: Wikimedia Commons photos + licences
+│   ├── make_placeholders.py # host: fallback placeholder tiles
 │   ├── setup.ps1          # Windows host
 │   ├── setup.sh           # Linux/macOS host
+│   ├── inc/demo-data.php  # shared helpers (labels, category → keyword)
 │   ├── setup-site.php     # runs inside the container (wp eval-file)
+│   ├── seed-catalog.php   # runs inside the container: demo products/pages/menu
+│   ├── seed-photos.php    # runs inside the container: photos + attribution page
 │   ├── verify.py          # OAuth1 store checks
 │   └── smoke.ps1          # one product through the UpScale pipeline
+├── theme/
+│   └── upscale-storefront/ # child theme of Storefront (layout + logo.svg)
+├── data/                  # generated: catalog.json, source-products.csv,
+│                          #           photo-sources.json, photo-map.json
+├── assets/product-photos/ # generated: real photos per product type
+├── assets/hero/           # generated: hero banner candidates
+├── assets/placeholders/   # generated: fallback demo images
+├── docs/
+│   └── TESTING.md         # end-to-end runbook for the UpScale product
 ├── config/
 │   └── mapping.example.json
 └── README.md
@@ -226,6 +295,7 @@ UpScale-WP-Test/
 
 ## Related
 
+- `docs/TESTING.md` — end-to-end runbook for testing the UpScale import product against this store.
 - `../UpScale-Back-master/docs/woocommerce-site-setup.md` — store requirements, id contracts, verification checklist.
 - `../UpScale-Back-master/snippets/README.md` — the mu-plugin snippet.
 - `../UpScale-Back-master/docs/known-issues.md` — known defects the test will surface.

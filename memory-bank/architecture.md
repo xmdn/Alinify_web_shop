@@ -28,6 +28,9 @@ the host working tree.
 ## The setup path
 
 ```
+python scripts/build_catalog.py        # host: data/catalog.json + data/source-products.csv
+python scripts/fetch_product_photos.py # host: assets/product-photos + data/photo-*.json
+        │
 docker compose up -d --build
         │
 setup.ps1  (Windows)  /  setup.sh  (Linux/macOS)
@@ -37,13 +40,25 @@ setup.ps1  (Windows)  /  setup.sh  (Linux/macOS)
         ├─ wp plugin install --activate: woocommerce, wordpress-seo,
         │     yikes-inc-easy-custom-woocommerce-product-tabs
         ├─ wp rewrite structure '/%postname%/' --hard   (REST 404s without this)
+        ├─ theme install storefront (if absent) + cp theme/upscale-storefront
+        │     → wp-content/themes/, then activate the child theme
         ├─ docker compose cp ../UpScale-Back-master/snippets/upscale-woocommerce.php
         │     → /var/www/html/wp-content/mu-plugins/
-        └─ wp eval-file scripts/setup-site.php  (env passed inline)
-                 ├─ register the required global attributes (mu-plugin Section A)
-                 ├─ ensure the test product_cat
-                 ├─ insert a read/write WooCommerce REST key pair
-                 └─ write /work/config/mapping.json + /work/mock-ups/categories.json
+        ├─ wp eval-file scripts/setup-site.php  (env passed inline)
+        │        ├─ register the required global attributes (mu-plugin Section A)
+        │        ├─ create the product_cat tree from data/catalog.json, parent-first
+        │        ├─ insert a read/write WooCommerce REST key pair
+        │        └─ write /work/config/mapping.json + /work/mock-ups/categories.json
+        ├─ wp eval-file scripts/seed-catalog.php   (skipped with -SkipCatalog)
+        │        ├─ wp media import of the generated placeholder images
+        │        ├─ demo products (named after their photo keyword)
+        │        ├─ demo brands, the "Головне меню" menu, the info pages
+        │        └─ WooCommerce settings (UAH, 4 columns, ratings, page titles)
+        └─ wp eval-file scripts/seed-photos.php    (skipped with -SkipPhotos)
+                 ├─ import the Wikimedia Commons photographs (cached by file path)
+                 ├─ attach the matching photo + gallery to every demo product
+                 ├─ publish `upscale_category_images` / `upscale_hero_image` for the theme
+                 └─ publish the "Джерела зображень" attribution page
 ```
 
 `setup-site.php` prints a JSON summary on stdout; the host script parses it and
@@ -94,15 +109,29 @@ store's `product_cat` id, because `push_product` sends
 `categories: [{"id": product.category_id}]` verbatim. The file is re-read on
 every request, so it can change without a restart.
 
+The generated list holds **every** mirrored category (174 by default), each with
+its own `icp`/`keywords`, so `process` cannot hit the "Invalid category metadata"
+guard no matter which category the operator picks.
+
 ## Generated artifacts (never hand-edit)
 
 | File | Shape | Written by |
 | --- | --- | --- |
-| `config/mapping.json` | `actual_attributes`, `spec_example`, `gcategories_json` | `setup-site.php` into `/work/config/` |
+| `config/mapping.json` | `actual_attributes`, `spec_example`, `gcategories_json` (one entry per category) | `setup-site.php` into `/work/config/` |
 | `mock-ups/categories.json` | list of `{id, name, slug, keywords, icp}` | `setup-site.php` into `/work/mock-ups/` |
+| `data/catalog.json` | category tree + `g_category` + our `keywords`/`icp` (input) | `scripts/build_catalog.py` on the host |
+| `data/source-products.csv` | `url` + whitespace-separated image URLs | `scripts/build_catalog.py` on the host |
+| `data/photo-sources.json` | photographs with title, author, licence, licence URL, file page | `scripts/fetch_product_photos.py` on the host |
+| `data/photo-map.json` | category slug → photo keyword | `scripts/fetch_product_photos.py` on the host |
+| `assets/product-photos/<keyword>/*` | the photographs themselves | `scripts/fetch_product_photos.py` on the host |
+| `assets/hero/hero-*` | hero banner candidates | `scripts/fetch_product_photos.py` on the host |
+| `assets/placeholders/*.png` | eight abstract tiles (fallback) | `scripts/make_placeholders.py` on the host |
+| store options | `upscale_photo_attachments`, `upscale_category_images`, `upscale_hero_image` | `scripts/seed-photos.php` in the container |
 
 `config/mapping.json` is git-ignored (as is `.env`). Only
 `config/mapping.example.json` is a stable reference to the expected shape.
+`data/catalog.json` is generated from public taxonomy data plus this project's own
+templates — regenerate it, never hand-edit it (T9).
 
 ## Verification and smoke
 
@@ -123,7 +152,9 @@ every request, so it can change without a restart.
 
 ## Not wired in / boundaries
 
-- This project has **no git repository** and **no test suite**.
+- This project **is** a git repository (`main`, one commit, remote `origin` at the
+  time of writing), but the handoff model is the shared filesystem + memory bank,
+  not commits. It has **no test suite**.
 - `scripts/setup.sh` is CRLF-terminated and therefore unreliable under Git Bash
   on Windows; `scripts/setup.ps1` is the Windows path (see `activeContext.md`).
 - The backend's live-fetch fix (its `docs/woocommerce-site-setup.md` §7) is out of

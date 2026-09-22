@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SalonLine — demo logo for the UpScale test store.
+  Our own mark: a rounded square with an "S" monogram and a barber-pole stripe.
+  Generated for this project; not derived from any other company's logo.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 64" width="260" height="64" role="img" aria-label="SalonLine">
+  <defs>
+    <linearGradient id="sl-mark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1b1e24"/>
+      <stop offset="100%" stop-color="#0d0f13"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="2" y="8" width="48" height="48" rx="12" fill="url(#sl-mark)"/>
+  <rect x="2" y="8" width="6" height="48" rx="3" fill="#c8102e"/>
+
+  <path d="M38 20c-2.6-3-6.4-4.6-10.6-4.6-6.6 0-11.4 3.6-11.4 9 0 5.6 5 7.6 10.8 9 4.4 1 6.8 2 6.8 4.2 0 2.4-2.6 3.8-6.2 3.8-3.8 0-7-1.6-9.4-4.4l-3.2 3.6c3 3.6 7.6 5.6 12.6 5.6 6.8 0 11.8-3.6 11.8-9.2 0-5.8-5-7.8-11-9.2-4.2-1-6.6-1.8-6.6-4 0-2.2 2.4-3.6 5.8-3.6 3.2 0 6 1.2 8 3.4z"
+        fill="#ffffff" transform="translate(3 0) scale(0.86) translate(3 3)"/>
+
+  <text x="62" y="34" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="22" font-weight="700" letter-spacing="0.5" fill="#16181d">SalonLine</text>
+  <text x="63" y="50" font-family="'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="10.5" letter-spacing="1.6" fill="#6b7280">САЛОНИ КРАСИ ТА БАРБЕРШОПИ</text>
+</svg>

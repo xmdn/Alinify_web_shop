@@ -40,10 +40,21 @@ create → collect → process → generate → push
 | `cli` (WP-CLI) | Drives the setup via `docker compose exec` |
 | `ups-mock` (FastAPI) | Stand-in for the external "UPS" category API at `:9000` |
 | `scripts/setup.*` + `setup-site.php` | Install/configure the store; generate the id artifacts |
+| `scripts/build_catalog.py` | Host: mirror the reference store's category tree + build the analyzer's URL list |
+| `scripts/fetch_product_photos.py` | Host: real product photographs from Wikimedia Commons + their licences |
+| `scripts/seed-catalog.php` | In-container: demo products, brands, navigation menu, pages, store settings |
+| `scripts/seed-photos.php` | In-container: media import, product/category images, attribution page |
+| `scripts/inc/demo-data.php` | Shared helpers: Ukrainian labels, category → photo keyword |
+| `scripts/make_placeholders.py` | Host: generate the fallback placeholder images (pure Python) |
+| `theme/upscale-storefront` | Child theme of the free Storefront theme: logo, hero, tiles, footer |
 | `scripts/verify.py` | OAuth1 verification of the store |
 | `scripts/smoke.ps1` | One product through the pipeline, `push` only with `-Push` |
 | `config/mapping.json` | **Generated**; the `UPSCALE_MAPPING_FILE` payload |
 | `mock-ups/categories.json` | **Generated**; the mock's category list with real ids |
+| `data/catalog.json` | **Generated**; the category tree `setup-site.php` creates |
+| `data/source-products.csv` | **Generated**; public product URLs for `POST /new_products/upload` |
+| `data/photo-sources.json` | **Generated**; photographs + author/licence/file page |
+| `assets/product-photos/` | **Generated**; real photos of real products, one folder per type |
 
 ## Goals
 
@@ -59,7 +70,10 @@ create → collect → process → generate → push
 
 - **Not part of the backend.** The backend never depends on this store at runtime.
 - **Not production.** Never given production keys, credentials, or data.
-- **Not a storefront/theme or a CMS to build out.** It exists to be imported into.
+- **Not a real storefront.** It ships a demo theme and a demo catalogue so the
+  pipeline runs against a realistic store, but it holds no production content and
+  nothing copied from another site's catalogue (see **T8**); the reference store's
+  product *URLs* are only ever a test input list.
 - **Not a general WordPress project.** It has no product features of its own.
 - **Not the home of the pipeline.** All pipeline code lives in
   `D:/UpScale-Back-master`.

@@ -105,3 +105,137 @@ entrypoint; `setup.sh` targets Linux/macOS hosts.
 `powershell -ExecutionPolicy Bypass -File scripts/setup.ps1`. Do not run
 `setup.ps1` through `bash` (wrong interpreter). Converting `setup.sh` to LF is an
 optional cleanup, not a requirement while `setup.ps1` exists.
+
+## T8. Mirror the reference storefront's *structure*, never its content
+
+**Date:** 2026-09-22. **Status:** implemented.
+
+The user asked for a store like `https://beauty-mafia.com.ua/`. What this project
+reproduces is the **structure**: the category tree (names/slugs/hierarchy read from
+the site's public Store API), the layout (utility bar, dark navigation with
+dropdowns, hero, category tiles, product grid, brand strip, trust blocks,
+testimonials, four-column footer) and the store settings (UAH, four columns,
+ratings on).
+
+What it does **not** reproduce: the site's product names, descriptions,
+photographs, banners, reviews, brand name ("Beauty Mafia") or copy. Demo products
+are labelled `Демо-товар: …` with deterministic demo prices and generated
+placeholder images; reviews are labelled `(демо-відгук)`; the store title, phone
+and address are this project's own and obviously fake.
+
+**Why:** copying a third party's product content and brand into this store would
+be a copyright/trademark problem and serves no testing purpose — the pipeline
+needs a realistic *shape* (categories, attributes, ids), not someone else's text.
+
+**Consequences:** comparisons between the two sites will show a similar layout and
+clearly different content. Anything imported *from* the reference site is a public
+**URL**, never a copied artefact.
+
+## T9. `data/catalog.json` is an input; `setup-site.php` stays the only artifact generator
+
+**Date:** 2026-09-22. **Status:** implemented. **Refines T6.**
+
+- `scripts/build_catalog.py` (host, Python stdlib) reads the reference site's
+  public category list, matches slugs against the backend's `gpt_data.py`
+  snapshot for the Google product category, adds this project's own Ukrainian
+  `keywords`/`icp`, and writes `data/catalog.json` and `data/source-products.csv`.
+- `scripts/setup-site.php` (in-container) consumes `data/catalog.json`, creates the
+  `product_cat` tree parent-first and **still** writes `config/mapping.json` and
+  `mock-ups/categories.json` from the store's real ids.
+- Without `data/catalog.json` the legacy single `test-category` path runs.
+
+**Why:** the three-way id contract (mock ↔ `gcategories_json` ↔ `product_cat`) must
+keep exactly one generator (T6), while the catalog content is data, not code.
+
+**Consequences:** after changing the catalog, run `build_catalog.py` and then the
+setup; `data/catalog.json` is generated — regenerate it, never hand-edit it. A
+category that exists but is not in the catalog is left untouched.
+
+## T10. Demo seeding is a separate, idempotent script
+
+**Date:** 2026-09-22. **Status:** implemented.
+
+`scripts/seed-catalog.php` (in-container, run by `scripts/setup.ps1`) adds demo
+products (SKU `DEMO-<source_id>-<n>`, deterministic demo prices derived from the
+SKU), fictional demo brands, the `Головне меню` navigation menu, the four
+informational pages and the WooCommerce/UAH settings.
+
+It skips anything that already exists, and it only rebuilds the navigation menu
+when it created that menu (`upscale_primary_menu_id`), so manual edits are never
+overwritten.
+
+**Why:** after `docker compose down -v` the storefront must be reproducible in one
+command, and a second run must not duplicate products, reviews, pages or menu
+items.
+
+**Consequences:** safe to re-run. `wp option upscale_placeholder_ids` caches the
+imported placeholder attachments so images are imported once.
+
+## T11. Placeholder images are generated locally
+
+**Date:** 2026-09-22. **Status:** implemented.
+
+`scripts/make_placeholders.py` writes eight abstract PNG tiles (pure Python, no
+Pillow) into `assets/placeholders/`; `setup.ps1` imports them with
+`wp media import` and passes the attachment ids to the seeder.
+
+**Why:** the storefront needs images to look like a real catalogue, while T8
+forbids downloading another site's photographs; Pillow would add a host
+dependency this project does not otherwise need.
+
+**Consequences:** product images are abstract tiles, not photography. Changing the
+generator changes the PNGs only; already-imported attachments keep their ids.
+
+## T12. Real product photographs come from Wikimedia Commons, with the licence recorded
+
+**Date:** 2026-09-22. **Status:** implemented. **Extends T8.**
+
+`scripts/fetch_product_photos.py` downloads photographs of real products from
+Wikimedia Commons — CC0 / public domain / CC BY / CC BY-SA only, at least 700 px,
+with logos, diagrams and documents filtered out — into
+`assets/product-photos/<keyword>/`, and records the title, author, licence, licence
+URL and file page in `data/photo-sources.json`. It also stores one hero banner
+candidate per run under `assets/hero/`.
+
+`scripts/seed-photos.php` then imports them into the media library (once — the
+file → attachment map is cached in `upscale_photo_attachments`) and:
+
+- maps every category to a **kind of product** (clipper, dryer, chair, lamp …) via
+  `data/photo-map.json`, inheriting from the nearest ancestor when a leaf has none;
+- gives every demo product a featured image and a gallery of that kind, and names
+  it after the object in the photo (`Мийка парикмахерська BarberCraft M-870`) so
+  the card and its picture agree;
+- publishes the "Джерела зображень" page listing each file with author, licence and
+  Commons link.
+
+**Why:** the absent photographs were exactly what made the storefront look
+unfinished. Commons keeps the store visually real *and* honest: attribution is
+published where the licences require it, and nothing is taken from the reference
+shop's catalogue (its `wp-content/uploads/*` images, `bm-banner*`, brand logos).
+
+**Consequences:** the attribution for CC BY / CC BY-SA files **must** stay
+published — if that page is removed, or the photos are reused elsewhere, the licences
+have to be satisfied again. A photograph is reused across several demo products
+(Commons holds no 304 unique shop photographs); that is acceptable for a demo.
+`--only <keyword>` refills a single gap without re-downloading everything.
+
+## T13. The storefront speaks Ukrainian and hides Storefront's page-list fallback
+
+**Date:** 2026-09-22. **Status:** implemented.
+
+- `wp language core install uk`, `wp language plugin install woocommerce uk`,
+  `WPLANG=uk`: the chrome ("Додати в кошик", "Пошук товарів", "Кошик") comes from
+  real translations rather than our own string mapping. The theme keeps a small
+  `gettext` fallback for a store still running the English locale.
+- `scripts/seed-catalog.php` renames WooCommerce's pages and WordPress' sample page
+  (Кошик, Оформлення замовлення, Мій кабінет, Каталог, Демо-сторінка WordPress).
+- The "Головне меню" menu is assigned to Storefront's `handheld` location as well as
+  `primary`, because Storefront otherwise prints a plain WordPress page list in the
+  mobile navigation (and in the markup) — it looked like an unfinished menu.
+
+**Why:** English chrome mixed into a Ukrainian demo looked unfinished, and the stray
+page list was visible on narrow screens.
+
+**Consequences:** a store rebuilt from scratch re-installs the language packs (needs
+network access from the container); `WPLANG` is store state, not a tracked artifact.
+`AGENTS.md`'s constraint set is unaffected: this is presentation only.

@@ -33,9 +33,11 @@ goal, affected files, constraints, risks, acceptance criteria, and tests.
 ## Source-of-truth rules
 
 - The tracked files in `memory-bank/` are the shared memory between agents.
-- This directory is **not a git repository**. There is no commit/push handoff and
-  no revert safety net. Hand off through the shared filesystem and the memory
-  bank, and back up before destructive changes.
+- This directory **is** a git repository (`main`, one commit, remote `origin`), but
+  nothing in the workflow relies on committing: hand off through the shared
+  filesystem and the memory bank, and back up before destructive changes. The
+  working tree carries uncommitted changes by design — do not commit or push on
+  another agent's behalf unless you are asked to.
 - `config/mapping.json` and `mock-ups/categories.json` are **generated** by
   `scripts/setup.*` and must never be hand-edited to paper over a bug — re-run the
   setup instead (only `mapping.example.json` and the generated files' schema are
